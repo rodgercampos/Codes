@@ -1,11 +1,11 @@
 # Empirical identification of intra-urban subcentralities: a new methodological approach with an application for a developing country 
-#                  Rodger B. A. Campos & Carlos R. Azzoni - 12/2020                   
+# Rodger B. A. Campos & Carlos R. Azzoni                  
 
 
 # Memory clearing
 rm(list = ls())
 
-# seting working directory (parent folder)
+# Setting directory (parent folder)
 setwd ("d:/Users/rantunes/Documents/Rodger/BASE DE DADOS")
 
 # Installing packages
@@ -21,36 +21,36 @@ for (i in 1:length(pkgs)) {
 
 rm(pkgs, i)
 
-# input map files
+# Loading files
 masp_dsn <- "GIS/RMSP ShapeFiles"
 masp_shp <- "RMSP_dissolve"
 masp.grid_shp <- "masp.grid"
 
-# read data 
+# Reading shapefiles 
 masp.o <- readOGR(dsn = masp_dsn, layer = masp_shp)       # RMSP
 masp <- masp.o
 
 
 # Gridding shapefile 
 plot(masp) #plotting the map
-grid <- raster(extent(masp)) # creating an empty raster
-res(grid)<- 1/111.32 # choosing the grid size (here I'm using 2km² grid) 1dd = 111.32 km
-proj4string(grid)<-proj4string(masp) # Make the grid have the same coordinate reference system (CRS) as the shapefile---------------------------
-gridpolygon <- rasterToPolygons(grid) # Transform this raster into a polygon and you will have a grid, but without MASP
-masp.grid <- intersect(masp, gridpolygon) # Intersect the grid with MASP's shape
-plot(masp.grid) # Plot the intersected shape to see if everything is fine
+grid <- raster(extent(masp))
+res(grid)<- 1/111.32
+proj4string(grid)<-proj4string(masp) 
+gridpolygon <- rasterToPolygons(grid)
+masp.grid <- intersect(masp, gridpolygon)
+plot(masp.grid)
 masp.grid$id.masp<-1:length(masp.grid)
 head(masp.grid)
 summary(masp.grid$id.masp)
 
 
-# input and read RAIS files 
+# Loading RAIS files 
 for (year in c(2002, 2008,2014)){
   rais <- "d:/Users/rantunes/Documents/Rodger/BASE DE DADOS" 
   firmas.o<- read.dta13(paste0(rais,"/RAIS_Geo_Final/rmsp_georais",year,"_firmas_final.dta",sep=""))
   firmas <- firmas.o
 
-# From dataframe to shapefile
+# From df to shp
   head(firmas)
   dim(firmas)
   firmas$x1<-as.numeric(firmas$x)
@@ -60,10 +60,7 @@ for (year in c(2002, 2008,2014)){
   firmas.df=SpatialPointsDataFrame(firmas, data.frame(id=1:length(firmas))) #creating point shp
   geofirmas.df <- cbind(firmas, firmas.df)
   
-  
-  #writeOGR(geofirmas.df, dsn="RAIS_Geo_Final" ,layer=paste("geofirmas",year),
-  #         driver="ESRI Shapefile", overwrite_layer=T)
-  
+
   # Aggregating firms information by grid 
   firmas.spjoin <- over(geofirmas.df,masp.grid) #sph overlapping
   dim(firmas.spjoin)
@@ -247,7 +244,7 @@ writeOGR(geofirmas.grid, dsn="RAIS_Geo_Final", layer="SBD2014.final_McMillen & S
 
 
 ########################################################################################
-#                               MS APPROACH                                           #
+#                               MS APPROACH - 2 Stage                                  #
 #######################################################################################
 
 # input files 

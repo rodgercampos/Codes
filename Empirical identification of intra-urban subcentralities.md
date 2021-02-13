@@ -1,7 +1,6 @@
-#######################################################################################
-#                                   ECONOMÍA JOURNAL                                  #
-#                  Rodger B. A. Campos & Carlos R. Azzoni - 12/2020                   # 
-#######################################################################################
+# Empirical identification of intra-urban subcentralities: a new methodological approach with an application for a developing country 
+#                  Rodger B. A. Campos & Carlos R. Azzoni - 12/2020                   
+
 
 # Memory clearing
 rm(list = ls())
@@ -22,17 +21,17 @@ for (i in 1:length(pkgs)) {
 
 rm(pkgs, i)
 
-# input map files------------------------------------------------------------------------
+# input map files
 masp_dsn <- "GIS/RMSP ShapeFiles"
 masp_shp <- "RMSP_dissolve"
 masp.grid_shp <- "masp.grid"
 
-# read data -----------------------------------------------------------------------------------
+# read data 
 masp.o <- readOGR(dsn = masp_dsn, layer = masp_shp)       # RMSP
 masp <- masp.o
 
 
-# Gridding shapefile -----------------------------------------------------
+# Gridding shapefile 
 plot(masp) #plotting the map
 grid <- raster(extent(masp)) # creating an empty raster
 res(grid)<- 1/111.32 # choosing the grid size (here I'm using 2km² grid) 1dd = 111.32 km
@@ -45,13 +44,13 @@ head(masp.grid)
 summary(masp.grid$id.masp)
 
 
-# input and read RAIS files -------------------------------------------------------------------------------
+# input and read RAIS files 
 for (year in c(2002, 2008,2014)){
   rais <- "d:/Users/rantunes/Documents/Rodger/BASE DE DADOS" 
   firmas.o<- read.dta13(paste0(rais,"/RAIS_Geo_Final/rmsp_georais",year,"_firmas_final.dta",sep=""))
   firmas <- firmas.o
 
-# Converte table of coordinate to shapefile--------------------------------------------------------------- 
+# From dataframe to shapefile
   head(firmas)
   dim(firmas)
   firmas$x1<-as.numeric(firmas$x)
@@ -65,7 +64,7 @@ for (year in c(2002, 2008,2014)){
   #writeOGR(geofirmas.df, dsn="RAIS_Geo_Final" ,layer=paste("geofirmas",year),
   #         driver="ESRI Shapefile", overwrite_layer=T)
   
-  # Aggregating firms information by grid--------------------------------------------
+  # Aggregating firms information by grid 
   firmas.spjoin <- over(geofirmas.df,masp.grid) #sph overlapping
   dim(firmas.spjoin)
   dim(masp.grid)
@@ -92,18 +91,17 @@ for (year in c(2002, 2008,2014)){
   
   var[is.na(var)]<-0
   
-# Combining to grid shapefile-------------------------------------------------------
+# Combining database
   geofirmas.grid <- merge(masp.grid, var, by="id_masp")
   geofirmas.grid$emprego[is.na(geofirmas.grid$emprego)]<-0 # replacing na for 0
  
    writeOGR(geofirmas.grid , dsn="RAIS_Geo_Final", layer=paste("firmas",year,".grid"), 
            driver="ESRI Shapefile", overwrite_layer=T)}
 
-########################################################################################
-#                               CA APPROACH MODEL                                     #
-#######################################################################################
 
-# input map files------------------------------------------------------------------------
+# CA APPROACH MODEL                                
+
+# input map files
 year <- 2002 #change the year
 geofirmas.grid.o <- readOGR(dsn="RAIS_Geo_Final", layer = paste0("firmas", year," .grid"))
 geofirmas.grid <- geofirmas.grid.o
@@ -112,18 +110,14 @@ dim(geofirmas.grid)
 spplot(geofirmas.grid, "emprego")
 
 
-# Ways of Bandwidth Selection ----------------------------------------------------
-##The bandwidth in the kernel is expressed in the same units as the coordinates used in the
-##dataset
-
+# Bandwidth Selection 
 g.aic.gauss.po <- gwr.sel(emprego ~ 1, data=geofirmas.grid, gweight=gwr.Gauss, method = 'aic')
 g.aic.bisquare.po <- gwr.sel(emprego ~ 1, data=geofirmas.grid, gweight=gwr.bisquare, method = 'aic')
 g.aic.tricube.po <- gwr.sel(emprego ~ 1, data=geofirmas.grid, gweight=gwr.tricube, method = 'aic')
 
 g.aic <-2.063 #bandwidth with lower AIC. 
 
-# Best Model (Generalized Least Squre) ---------------------------------------------- 
-#---- CA Approach
+# Best Model (Generalized Least Squre)
 model <- gwr(emprego ~ 1, data=geofirmas.grid, gweight = gwr.tricube, bandwidth=g.aic, hatmatrix = TRUE)
 summary(model$SDF)
 dim(model$SDF)
@@ -138,7 +132,7 @@ res <- as.data.frame(result[,72])
 pred <- cbind(id,res)
 
 
-# Correção Bonferroni
+# Bonferroni Adjustment
 gwmx <- as.data.frame(model$SDF)
 n <- dim(gwmx)[1];n
 m <- dim(gwmx)[2];m
@@ -153,13 +147,13 @@ beh_pvals <- round(p.adjust(pvals, "BH", n = ntests))
 bon_pvals <- round(p.adjust(pvals, "bonferroni", n = ntests),3)
 summary(bon_pvals)
 
-# CBD RULE -------------------------------
+# CBD RULE 
 q99 <- quantile(result$X.Intercept., c(0.99))
 q95 <- quantile(result$X.Intercept., c(0.95))
 q90 <- quantile(result$X.Intercept., c(0.90))
 q50 <- quantile(result$X.Intercept.,c(0.50))
 
-# 99% Statistic Significance --------------------- 
+# 99% Statistics Significance 
 result$sbd99.1p<- ifelse((result$X.Intercept.>=q99 & bon_pvals<=0.01),1,0)
 result$sbd95.1p<- ifelse((result$X.Intercept.>=q95 & bon_pvals<=0.01),1,0)
 result$sbd90.1p<- ifelse((result$X.Intercept.>=q90 & bon_pvals<=0.01),1,0)
@@ -170,7 +164,7 @@ cat("Number of grids identified as part of SBD:  ",sum(result$sbd95.1p),"\n")
 cat("Number of grids identified as part of SBD:  ",sum(result$sbd90.1p),"\n")
 cat("Number of grids identified as part of SBD:  ",sum(result$sbd50.1p),"\n")
 
-# 95% Statistic Significance --------------------- 
+# 95% Statistic Significance 
 result$sbd99.5p<- ifelse((result$X.Intercept.>=q99 & bon_pvals<=0.05),1,0)
 result$sbd95.5p<- ifelse((result$X.Intercept.>=q95 & bon_pvals<=0.05),1,0)
 result$sbd90.5p<- ifelse((result$X.Intercept.>=q90 & bon_pvals<=0.05),1,0)
@@ -181,7 +175,7 @@ cat("Number of grids identified as part of SBD:  ",sum(result$sbd95.5p),"\n")
 cat("Number of grids identified as part of SBD:  ",sum(result$sbd90.5p),"\n")
 cat("Number of grids identified as part of SBD:  ",sum(result$sbd50.5p),"\n")
 
-# 90% Statistic Significance --------------------- 
+# 90% Statistic Significance
 result$sbd99.10p<- ifelse((result$X.Intercept.>=q99 & bon_pvals<=0.1),1,0)
 result$sbd95.10p<- ifelse((result$X.Intercept.>=q95 & bon_pvals<=0.1),1,0)
 result$sbd90.10p<- ifelse((result$X.Intercept.>=q90 & bon_pvals<=0.1),1,0)
@@ -192,17 +186,14 @@ cat("Number of grids identified as part of SBD:  ",sum(result$sbd95.10p),"\n")
 cat("Number of grids identified as part of SBD:  ",sum(result$sbd90.10p),"\n")
 cat("Number of grids identified as part of SBD:  ",sum(result$sbd50.10p),"\n")
 
-# Save -------------------------------- 
+# Save 
 write.csv(pred, paste0("Rais_Geo_Final/predito_C&A",year,".csv", sep=""))
 writeOGR(result, dsn="RAIS_Geo_Final", layer="SBD2014.final_bonferroni", 
          driver="ESRI Shapefile", overwrite_layer=T)
 writeOGR(masp.grid, dsn= masp_dsn, layer= "masp.grid", driver="ESRI Shapefile", overwrite_layer=T)
 
 
-
-########################################################################################
-#                               MS APPROACH                                          #
-#######################################################################################
+# MS APPROACH 
 data <- data.frame(geofirmas.grid$emprego,geofirmas.grid$long,geofirmas.grid$lat)
 names(data) <- c("emprego","long","lat")
 
@@ -226,7 +217,7 @@ geofirmas.grid$sbdMS_1pp <- (sbd.o[,1])
 names(geofirmas.grid) 
 
 
-# Campos and Azzoni Adaptation (2003) -------------------------------------------------------------
+# Campos and Azzoni Adaptation for MS Approach (2003)
 subca <- function(emprego,long,lat,window=2.095, pval=.01) {
   
   fit <- locfit(emprego~lp(long,lat,h=2,063,deg=1),kern="tcub",ev=dat(cv=FALSE),data=data)
